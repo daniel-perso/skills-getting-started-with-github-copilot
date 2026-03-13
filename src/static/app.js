@@ -20,14 +20,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // Création de la liste des participants
+
+        let participantsHTML = "<ul class='participants-list'>";
+        if (details.participants.length === 0) {
+          participantsHTML += "<li class='no-participant'>Aucun participant pour l'instant</li>";
+        } else {
+          details.participants.forEach(email => {
+            participantsHTML += `<li class="participant-item"><span class="participant-email">${email}</span><span class="delete-participant" title="Désinscrire">&#128465;</span></li>`;
+          });
+        }
+        participantsHTML += "</ul>";
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-section">
+            <strong>Participants&nbsp;:</strong>
+            ${participantsHTML}
+          </div>
         `;
 
+
         activitiesList.appendChild(activityCard);
+
+        // Ajout des gestionnaires d'événements pour la suppression
+        const participantItems = activityCard.querySelectorAll('.participant-item');
+        participantItems.forEach((item) => {
+          const emailSpan = item.querySelector('.participant-email');
+          const deleteBtn = item.querySelector('.delete-participant');
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', async () => {
+              if (confirm(`Désinscrire ${emailSpan.textContent} de ${name} ?`)) {
+                try {
+                  const response = await fetch(`/activities/${encodeURIComponent(name)}/signup?email=${encodeURIComponent(emailSpan.textContent)}`, {
+                    method: 'DELETE',
+                  });
+                  if (response.ok) {
+                    fetchActivities(); // Rafraîchir la liste
+                  } else {
+                    const result = await response.json();
+                    alert(result.detail || 'Erreur lors de la désinscription.');
+                  }
+                } catch (err) {
+                  alert('Erreur réseau lors de la désinscription.');
+                }
+              }
+            });
+          }
+        });
 
         // Add option to select dropdown
         const option = document.createElement("option");
@@ -62,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Rafraîchir la liste après inscription
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
